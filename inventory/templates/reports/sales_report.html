@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Sales Report{% endblock %}
+
+{% block extra_css %}
+<style>
+  .kpi-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 1.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    margin-bottom: 3rem;
+  }
+  .kpi-row::-webkit-scrollbar { height: 6px; }
+  .kpi-row::-webkit-scrollbar-thumb { background: rgba(100,116,139,0.3); border-radius: 3px; }
+
+  .kpi-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 1.8rem 2.2rem;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    min-width: 280px;
+    flex: 1;
+    text-align: center;
+    transition: transform 0.3s ease;
+  }
+  .kpi-card:hover { transform: translateY(-8px); }
+
+  .kpi-value {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: black;
+    {% comment %} -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; {% endcomment %}
+  }
+  .kpi-label {
+    font-size: 1rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .filter-bar {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 1.6rem 2rem;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    margin-bottom: 2.5rem;
+  }
+
+  .chart-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 2rem;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    height: 420px;
+    position: relative;
+  }
+  .chart-card h5 {
+    position: absolute;
+    top: 1rem;
+    left: 2rem;
+    z-index: 10;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .table-container {
+    background: var(--surface);
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+  }
+  .table-container .header {
+    padding: 1.6rem 2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-5">
+  <h1 class="page-title">Sales Report</h1>
+  <div class="btn-group">
+    <a href="?export=pdf{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}"
+       class="btn btn-danger btn-lg px-4">PDF</a>
+    <a href="?export=csv{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}"
+       class="btn btn-success btn-lg px-4">CSV</a>
+  </div>
+</div>
+
+<!-- Date Filter -->
+<div class="filter-bar">
+  <form method="get" class="row g-4 align-items-end">
+    <div class="col-lg-5">
+      <label class="form-label fw-bold">Start Date</label>
+      <input type="date" name="start_date" value="{{ request.GET.start_date }}" class="form-control form-control-lg">
+    </div>
+    <div class="col-lg-5">
+      <label class="form-label fw-bold">End Date</label>
+      <input type="date" name="end_date" value="{{ request.GET.end_date }}" class="form-control form-control-lg">
+    </div>
+    <div class="col-lg-2">
+      <button type="submit" class="btn btn-primary btn-lg w-100">Apply</button>
+    </div>
+  </form>
+</div>
+
+<!-- KPI Cards — NO icons, pure elegance -->
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div class="kpi-label">Total Revenue</div>
+    <div class="kpi-value">GH₵{{ total_sales|floatformat:2 }}</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Total Invoices</div>
+    <div class="kpi-value">{{ total_invoices }}</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Average Sale</div>
+    <div class="kpi-value">GH₵{{ average_sale|floatformat:2 }}</div>
+  </div>
+</div>
+
+<!-- Charts -->
+<div class="row g-5 mb-5">
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <h5>7-Day Sales Trend</h5>
+      <canvas id="salesChart"></canvas>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <h5>Monthly Performance</h5>
+      <canvas id="monthlyChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Top Selling Products -->
+<div class="table-container">
+  <div class="header">
+    <div class="fw-bold fs-5">Top Selling Products</div>
+    <small class="text-muted">{{ top_products|length }} product{{ top_products|length|pluralize }}</small>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="text-uppercase small text-muted">
+        <tr>
+          <th>Rank</th>
+          <th>Product</th>
+          <th class="text-center">Qty Sold</th>
+          <th class="text-end">Revenue</th>
+          <th class="text-center">Performance</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in top_products %}
+        <tr>
+          <td><strong class="fs-4">#{{ forloop.counter }}</strong></td>
+          <td>
+            <div class="fw-bold">{{ p.product__name }}</div>
+            <small class="text-muted">{{ p.product__sku }}</small>
+          </td>
+          <td class="text-center">
+            <span class="badge bg-success fs-5 px-4 py-2">{{ p.sold }}</span>
+          </td>
+          <td class="text-end fw-bold text-primary fs-5">GH₵{{ p.revenue|floatformat:2 }}</td>
+          <td class="text-center">
+            {% if forloop.counter == 1 %}
+              <span class="badge bg-warning text-dark px-4 py-2">Best Seller</span>
+            {% elif forloop.counter <= 3 %}
+              <span class="badge bg-success px-4 py-2">Top 3</span>
+            {% else %}
+              <span class="badge bg-info text-dark px-3 py-2">Strong</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center py-6 text-muted">
+            <h5>No sales data for selected period</h5>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // 7-Day Line Chart
+  new Chart(document.getElementById('salesChart'), {
+    type: 'line',
+    data: {
+      labels: {{ labels_7d|safe }},
+      datasets: [{
+        label: 'Daily Sales',
+        data: {{ sales_7d|safe }},
+        borderColor: '#4361ee',
+        backgroundColor: 'rgba(67, 97, 238, 0.08)',
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: '#4361ee',
+        pointRadius: 6,
+        pointHoverRadius: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+
+  // Monthly Bar Chart
+  new Chart(document.getElementById('monthlyChart'), {
+    type: 'bar',
+    data: {
+      labels: {{ monthly_labels|safe }},
+      datasets: [{
+        label: 'Monthly Revenue',
+        data: {{ monthly_sales|safe }},
+        backgroundColor: '#4361ee',
+        borderRadius: 10,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+</script>
+{% endblock %}

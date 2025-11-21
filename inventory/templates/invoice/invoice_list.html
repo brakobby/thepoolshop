@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Invoices{% endblock %}
+
+{% block extra_css %}
+<style>
+  .kpi-row {
+    display: flex; 
+    flex-wrap: nowrap; 
+    gap: 1.5rem; 
+    overflow-x: auto; 
+    padding-bottom: 0.5rem; 
+    margin-bottom: 3rem;
+  }
+  .kpi-row::-webkit-scrollbar { height: 6px; }
+  .kpi-row::-webkit-scrollbar-thumb { background: rgba(100,116,139,0.3); border-radius: 3px; }
+
+  .kpi-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 1.6rem 2rem;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    min-width: 260px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .kpi-value {
+    font-size: 1.8rem;
+    font-weight: 800;
+    text-align: center;
+  }
+  .kpi-label {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+
+  .filter-bar {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 1.4rem 1.8rem;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    margin-bottom: 2rem;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .table-container {
+    background: var(--surface);
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+  }
+  .table-container .header {
+    padding: 1.6rem 2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 5rem 2rem;
+    color: var(--text-muted);
+  }
+  .empty-state i {
+    font-size: 4.5rem;
+    opacity: 0.2;
+    margin-bottom: 1.5rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-5">
+  <h1 class="page-title">Invoices</h1>
+  <a href="{% url 'create_invoice' %}" class="btn btn-primary btn-lg px-5">
+    New Invoice
+  </a>
+</div>
+
+<!-- Horizontal KPIs -->
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div>
+      <div class="kpi-label">Paid Invoices</div>
+      <div class="kpi-value text-success">{{ paid_count }}</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div>
+      <div class="kpi-label">Unpaid Invoices</div>
+      <div class="kpi-value text-warning">{{ unpaid_count }}</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div>
+      <div class="kpi-label">Total Revenue</div>
+      <div class="kpi-value">GH₵{{ total_revenue|floatformat:2 }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-bar">
+  <form method="get" class="w-100 d-flex gap-3 flex-wrap align-items-center">
+    <input type="text" name="search" class="form-control" placeholder="Search invoice # or customer..." value="{{ request.GET.search }}">
+    <select name="status" class="form-select" style="min-width: 160px;">
+      <option value="">All Status</option>
+      <option value="paid" {% if request.GET.status == 'paid' %}selected{% endif %}>Paid</option>
+      <option value="unpaid" {% if request.GET.status == 'unpaid' %}selected{% endif %}>Unpaid</option>
+    </select>
+    <button type="submit" class="btn btn-outline-primary px-4">Filter</button>
+    <a href="{% url 'invoice_list' %}" class="btn btn-outline-secondary px-4">Clear</a>
+  </form>
+</div>
+
+<!-- Invoices Table -->
+<div class="table-container">
+  <div class="header">
+    <div class="fw-bold fs-5">All Invoices</div>
+    <small class="text-muted">{{ invoices|length }} invoice{{ invoices|length|pluralize }}</small>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="text-uppercase small text-muted">
+        <tr>
+          <th>Invoice #</th>
+          <th>Date</th>
+          <th>Customer</th>
+          <th class="text-end">Amount</th>
+          <th class="text-center">Status</th>
+          <th class="text-center">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in invoices %}
+        <tr>
+          <td><strong>#{{ inv.invoice_number }}</strong></td>
+          <td>{{ inv.date_created|date:"d M Y" }}</td>
+          <td>{{ inv.customer.name|default:"Walk-in Customer" }}</td>
+          <td class="text-end fw-bold text-primary">GH₵{{ inv.total_amount|floatformat:2 }}</td>
+          <td class="text-center">
+            {% if inv.is_paid %}
+              <span class="badge bg-success px-3 py-2">Paid</span>
+            {% else %}
+              <span class="badge bg-warning text-dark px-3 py-2">Unpaid</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <div class="btn-group" role="group">
+              <a href="{% url 'view_invoice' inv.id %}" class="btn btn-sm btn-outline-primary">View</a>
+              {% if inv.is_paid %}
+                <a href="{% url 'generate_receipt' inv.id %}" class="btn btn-sm btn-success">Print</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="empty-state">
+            Receipt Icon
+            <h4 class="mt-4 text-muted">No invoices found</h4>
+            <p>Create your first sale to get started</p>
+            <a href="{% url 'create_invoice' %}" class="btn btn-primary btn-lg mt-3">
+              Create First Invoice
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

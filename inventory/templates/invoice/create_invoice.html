@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Create Invoice{% endblock %}
+
+{% block extra_css %}
+<style>
+  .card { 
+    background: var(--surface); 
+    border-radius: var(--radius); 
+    border: 1px solid var(--border); 
+    box-shadow: var(--shadow); 
+  }
+  .line-item {
+    display: grid; 
+    grid-template-columns: 2.8fr 1fr 1fr 1fr auto; 
+    gap: 1rem; 
+    align-items: end; 
+    padding: 1rem;
+    background: rgba(67,97,238,0.03);
+    border-radius: 12px;
+    border: 1px solid rgba(67,97,238,0.1);
+    margin-bottom: 1rem;
+  }
+  .line-total {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--primary);
+  }
+  .totals-card {
+    background: linear-gradient(135deg, rgba(67,97,238,0.08), rgba(67,97,238,0.03));
+    border: 2px solid rgba(67,97,238,0.15) !important;
+  }
+  .totals-card h3 {
+    font-size: 1.7rem;
+    font-weight: 800;
+  }
+  #add-line {
+    border: 2px dashed var(--primary);
+    background: rgba(67,97,238,0.05);
+    color:blue;
+  }
+  #add-line:hover {
+    background: rgba(67,97,238,0.12);
+    border-style: solid;
+  }
+
+  @media (max-width: 992px) {
+    .line-item { 
+      grid-template-columns: 1fr; 
+    }
+    .totals-card h3 { font-size: 1.8rem; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-5">
+  <h1 class="page-title">Create Invoice</h1>
+  <a href="{% url 'invoice_list' %}" class="btn btn-outline-secondary px-5">
+    Back to Invoices
+  </a>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-4">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Customer Section -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="fw-bold mb-4">Customer Information</h5>
+      <div class="row g-4">
+        <div class="col-lg-8">
+          <label class="form-label fw-semibold">Select Existing Customer</label>
+          <select class="form-select form-select-lg" name="customer">
+            <option value="">— Walk-in Customer —</option>
+            {% for c in customers %}
+              <option value="{{ c.id }}" {% if c.id == selected_customer %}selected{% endif %}>
+                {{ c.name }} • {{ c.phone }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-lg-4">
+          <label class="form-label fw-semibold">Or Add New Name</label>
+          <input type="text" class="form-control form-control-lg" name="new_customer_name"
+                 placeholder="e.g. Kwame Mensah">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Line Items -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h5 class="fw-bold mb-0">Invoice Items</h5>
+        <button type="button" id="add-line" class="btn btn-primary">
+          Add Item
+        </button>
+      </div>
+
+      <div id="line-items">
+        <!-- First line -->
+        <div class="line-item">
+          <select class="form-select product-select" name="product_1" required>
+            <option value="">— Select Product —</option>
+            {% for p in products %}
+              <option value="{{ p.id }}" 
+                      data-price="{{ p.selling_price|floatformat:2 }}" 
+                      data-stock="{{ p.quantity }}"
+                      {% if p.quantity == 0 %}disabled{% endif %}>
+                {{ p.sku }} – {{ p.name }} 
+                {% if p.quantity == 0 %}(Out of Stock){% else %}({{ p.quantity }} in stock){% endif %}
+                • GH₵{{ p.selling_price|floatformat:2 }}
+              </option>
+            {% endfor %}
+          </select>
+          <input type="number" class="form-control qty-input" name="qty_1" value="1" min="1" required placeholder="Qty">
+          <input type="text" class="form-control price-input" readonly value="GH₵0.00">
+          <input type="text" class="form-control line-total" readonly value="GH₵0.00">
+          <button type="button" class="btn btn-sm btn-outline-danger remove-line">Remove</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Totals -->
+  <div class="card totals-card mb-5">
+    <div class="card-body">
+      <div class="row justify-content-end text-end">
+        <div class="col-lg-5">
+          <div class="d-flex justify-content-between py-3 fs-5">
+            <span>Subtotal:</span>
+            <strong id="subtotal" class="fs-4">GH₵0.00</strong>
+          </div>
+          <div class="d-flex justify-content-between py-3 fs-5">
+            <span>Tax (15% VAT):</span>
+            <strong id="tax" class="fs-4">GH₵0.00</strong>
+          </div>
+          <div class="d-flex justify-content-between py-4 border-top border-primary border-3">
+            <h4 class="mb-0 fw-bold">Total Due:</h4>
+            <h3 class="mb-0 text-primary fw-bold" id="total">GH₵0.00</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="d-flex justify-content-end gap-4">
+    <button type="submit" name="action" value="save_draft" 
+            class="btn btn-outline-secondary btn-lg px-5">
+      Save as Draft
+    </button>
+    <button type="submit" name="action" value="complete" 
+            class="btn btn-success btn-lg px-5">
+      Complete & Print Receipt
+    </button>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  let lineCounter = 1;
+
+  function recalculate() {
+    let subtotal = 0;
+    document.querySelectorAll('.line-item').forEach(row => {
+      const select = row.querySelector('.product-select');
+      const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
+      const qty = parseInt(row.querySelector('.qty-input').value) || 0;
+      const lineTotal = price * qty;
+      subtotal += lineTotal;
+
+      row.querySelector('.price-input').value = price ? `GH₵${price.toFixed(2)}` : 'GH₵0.00';
+      row.querySelector('.line-total').value = `GH₵${lineTotal.toFixed(2)}`;
+    });
+
+    const tax = subtotal * 0.15;
+    const total = subtotal + tax;
+
+    document.getElementById('subtotal').textContent = `GH₵${subtotal.toFixed(2)}`;
+    document.getElementById('tax').textContent = `GH₵${tax.toFixed(2)}`;
+    document.getElementById('total').textContent = `GH₵${total.toFixed(2)}`;
+  }
+
+  document.getElementById('add-line').addEventListener('click', () => {
+    lineCounter++;
+    const template = `
+      <div class="line-item">
+        <select class="form-select product-select" name="product_${lineCounter}" required>
+          <option value="">— Select Product —</option>
+          {% for p in products %}
+            <option value="{{ p.id }}" 
+                    data-price="{{ p.selling_price|floatformat:2 }}" 
+                    data-stock="{{ p.quantity }}"
+                    {% if p.quantity == 0 %}disabled{% endif %}>
+              {{ p.sku }} – {{ p.name }} 
+              {% if p.quantity == 0 %}(Out of Stock){% else %}({{ p.quantity }} in stock){% endif %}
+              • GH₵{{ p.selling_price|floatformat:2 }}
+            </option>
+          {% endfor %}
+        </select>
+        <input type="number" class="form-control qty-input" name="qty_${lineCounter}" value="1" min="1" required placeholder="Qty">
+        <input type="text" class="form-control price-input" readonly value="GH₵0.00">
+        <input type="text" class="form-control line-total" readonly value="GH₵0.00">
+        <button type="button" class="btn btn-sm btn-outline-danger remove-line">Remove</button>
+      </div>`;
+    
+    document.getElementById('line-items').insertAdjacentHTML('beforeend', template);
+    attachEvents();
+    recalculate();
+  });
+
+  function attachEvents() {
+    document.querySelectorAll('.product-select').forEach(el => el.onchange = recalculate);
+    document.querySelectorAll('.qty-input').forEach(el => el.oninput = recalculate);
+    document.querySelectorAll('.remove-line').forEach(btn => {
+      btn.onclick = () => {
+        btn.closest('.line-item').remove();
+        recalculate();
+      };
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    attachEvents();
+    recalculate();
+  });
+</script>
+{% endblock %}

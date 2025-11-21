@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    h2 { color: #00796b; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #e0f2f1; }
+  </style>
+</head>
+<body>
+  <h2>THE POOLsHOP - Stock Report</h2>
+  <p><strong>Date:</strong> {{ "now"|date:"d M Y" }}</p>
+  <p><strong>Total Items:</strong> {{ total_items }} | <strong>Value:</strong> GH₵{{ total_stock_value|floatformat:2 }}</p>
+
+  <h3>Stock Value by Category</h3>
+  <table>
+    <tr><th>Category</th><th>Value (GHS)</th></tr>
+    {% for label, value in cat_labels|zip:cat_values %}
+    <tr><td>{{ label }}</td><td>GH₵{{ value|floatformat:2 }}</td></tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

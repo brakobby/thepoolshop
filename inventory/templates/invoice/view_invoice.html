@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Invoice #{{ invoice.invoice_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  :root{
+    --bg:#f8faff;--panel:#ffffff;--muted:#64748b;--primary-600:#0d6efd;--primary-700:#0b5ed7;
+    --accent:#3b82f6;--card-shadow:0 10px 30px rgba(13,110,253,.06);--glass:rgba(255,255,255,.85);
+    --border:rgba(13,110,253,.08);--rounded:14px;--transition:all .22s cubic-bezier(.4,0,.2,1)
+  }
+  .dark-mode-enh{
+    --bg:#0f172a;--panel:#1e293b;--muted:#94a3b8;--primary-600:#60a5fa;--primary-700:#3b82f6;
+    --card-shadow:0 10px 30px rgba(0,0,0,.3);--glass:rgba(30,41,59,.9);--border:rgba(255,255,255,.08);
+  }
+
+  .invoice-card{
+    background:var(--panel);border-radius:var(--rounded);padding:2rem;
+    box-shadow:var(--card-shadow);border:1px solid var(--border);margin-bottom:2rem
+  }
+  .invoice-header{
+    background:linear-gradient(135deg,var(--primary-700),var(--primary-600));
+    color:#fff;padding:1.5rem;border-radius:var(--rounded) var(--rounded) 0 0;
+    margin:-2rem -2rem 2rem -2rem
+  }
+  .line-item{
+    display:grid;grid-template-columns:3fr 1fr 1fr 1fr auto;gap:1rem;
+    padding:1rem 0;border-bottom:1px solid var(--border);align-items:center
+  }
+  .line-item:last-child{border-bottom:none}
+  .line-total{font-weight:700;color:var(--primary-700);font-size:1.1rem}
+  .total-amount{font-size:3rem;font-weight:900;color:var(--primary-700)}
+  .btn-action{padding:.8rem 2rem;border-radius:12px;font-weight:600;font-size:1.05rem}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="page-title">
+    Invoice #{{ invoice.invoice_number }}
+  </h1>
+  <a href="{% url 'invoice_list' %}" class="btn btn-outline-secondary">
+    Back
+  </a>
+</div>
+
+<div class="invoice-card">
+  <div class="invoice-header">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h3 class="mb-0">Invoice #{{ invoice.invoice_number }}</h3>
+        <small>{{ invoice.date_created|date:"d M Y, H:i" }}</small>
+      </div>
+      {% if invoice.is_paid %}
+        <span class="badge bg-light text-success fs-5 px-4 py-2">PAID</span>
+      {% else %}
+        <span class="badge bg-warning text-dark fs-5 px-4 py-2">UNPAID</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="p-4">
+    <div class="row mb-5">
+      <div class="col-md-6">
+        <strong>Customer:</strong> {{ invoice.customer.name|default:"Walk-in Customer" }}<br>
+        {% if invoice.customer.phone %}<small class="text-muted">{{ invoice.customer.phone }}</small>{% endif %}
+      </div>
+      <div class="col-md-6 text-md-end">
+        <strong>Created by:</strong> {{ invoice.created_by.get_full_name|default:invoice.created_by.username }}
+      </div>
+    </div>
+
+    <!-- Items -->
+    <div class="mb-5">
+      {% for item in invoice.items.all %}
+      <div class="line-item">
+        <div><strong>{{ item.product.name }}</strong> ({{ item.product.sku }})</div>
+        <div class="text-center">{{ item.quantity }}</div>
+        <div class="text-end">GH₵{{ item.unit_price|floatformat:2 }}</div>
+        <div class="text-end line-total">GH₵{{ item.line_total|floatformat:2 }}</div>
+        <div>
+          {% if not invoice.is_paid %}
+          <form method="post" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="item_id" value="{{ item.id }}">
+            <button type="submit" name="delete_item" class="btn btn-sm btn-outline-danger">
+              Remove
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% empty %}
+      <p class="text-center text-muted py-4">No items added</p>
+      {% endfor %}
+    </div>
+
+    <!-- Add Item Form -->
+    {% if not invoice.is_paid %}
+    <form method="post" class="border rounded p-4 bg-light mb-5">
+      {% csrf_token %}
+      <div class="row g-3 align-items-end">
+        <div class="col-md-6">
+          <label class="form-label fw-bold">Add Product</label>
+          <select name="product" class="form-select form-select-lg" required>
+            <option value="">— Select Product —</option>
+            {% for p in available_products %}
+            <option value="{{ p.id }}">{{ p.sku }} – {{ p.name }} ({{ p.quantity }} in stock)</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold">Qty</label>
+          <input type="number" name="quantity" class="form-control form-control-lg text-center" min="1" value="1" required>
+        </div>
+        <div class="col-md-3">
+          <button type="submit" name="add_item" class="btn btn-primary btn-lg w-100">
+            Add Item
+          </button>
+        </div>
+      </div>
+    </form>
+    {% endif %}
+
+    <!-- Total -->
+    <div class="text-end mb-5">
+      <h2 class="total-amount">GH₵{{ invoice.total_amount|floatformat:2 }}</h2>
+    </div>
+
+    <!-- Actions -->
+    <div class="d-flex justify-content-end gap-3">
+      {% if not invoice.is_paid %}
+      <form method="post" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" name="finalize" class="btn btn-success btn-action">
+          Mark as Paid
+        </button>
+      </form>
+      {% else %}
+      <a href="{% url 'generate_receipt' invoice.id %}" class="btn btn-success btn-action">
+        Print Receipt
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

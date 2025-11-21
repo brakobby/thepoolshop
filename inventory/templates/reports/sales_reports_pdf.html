@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    h2 { color: #2c3e50; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    .text-right { text-align: right; }
+  </style>
+</head>
+<body>
+  <h2>THE POOLsHOP - Sales Report</h2>
+  <p><strong>Period:</strong> {{ start_date|default:"All Time" }} to {{ end_date|default:"Today" }}</p>
+  <p><strong>Total Sales:</strong> GH₵{{ total_sales|floatformat:2 }} | <strong>Invoices:</strong> {{ total_invoices }}</p>
+
+  <h3>Top 10 Products</h3>
+  <table>
+    <tr><th>Product</th><th>Sold</th><th class="text-right">Revenue</th></tr>
+    {% for p in top_products %}
+    <tr>
+      <td>{{ p.product__name }} ({{ p.product__sku }})</td>
+      <td>{{ p.sold }}</td>
+      <td class="text-right">GH₵{{ p.revenue|floatformat:2 }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="3">No sales</td></tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.5rem;margin-bottom:3rem}
+  .stat-card{background:var(--surface);border-radius:var(--radius);padding:1.8rem;border:1px solid var(--border);box-shadow:var(--shadow)}
+  .stat-value{font-size:1.8rem;font-weight:800;color:black;margin:0.5rem 0}
+  .stat-label{color:var(--text-muted);font-size:0.95rem}
+  .chart-container{background:var(--surface);border-radius:var(--radius);padding:2rem;border:1px solid var(--border);box-shadow:var(--shadow);height:420px}
+  .chart-title{font-size:1.15rem;font-weight:600;margin-bottom:1.5rem;color:var(--text)}
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Dashboard</h1>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Stock</div>
+    <div class="stat-value">{{ total_stock }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Low Stock Items</div>
+    <div class="stat-value">{{ low_stock_count }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Stock Value</div>
+    <div class="stat-value">GH₵{{ stock_value|floatformat:2 }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Today's Sales</div>
+    <div class="stat-value">GH₵{{ today_sales|floatformat:2 }}</div>
+  </div>
+</div>
+
+<div class="chart-container">
+  <div class="chart-title">Sales Trend • Last 7 Days</div>
+  <canvas id="salesChart"></canvas>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  new Chart(document.getElementById('salesChart'), {
+    type: 'line',
+    data: {
+      labels: {{ sales_labels|safe }},
+      datasets: [{
+        data: {{ sales_data|safe }},
+        borderColor: '#4361ee',
+        backgroundColor: 'rgba(67,97,238,0.08)',
+        tension: 0.4,
+        fill: true,
+        pointRadius: 5,
+        pointBackgroundColor: '#4361ee'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true }, x: { grid: { display: false } } }
+    }
+  });
+</script>
+{% endblock %}

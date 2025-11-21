@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Stock Report{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Fixed KPI cards — numbers now fit perfectly */
+  .kpi-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 1.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    margin-bottom: 3rem;
+  }
+  .kpi-row::-webkit-scrollbar { height: 6px; }
+  .kpi-row::-webkit-scrollbar-thumb { background: rgba(100,116,139,0.3); border-radius: 3px; }
+
+  .kpi-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 1.6rem 2rem;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    min-width: 260px;
+    flex: 1;
+    text-align: center;
+    transition: transform 0.3s ease;
+  }
+  .kpi-card:hover { transform: translateY(-8px); }
+
+  /* FIXED: Responsive font size + word break */
+  .kpi-value {
+    font-size: 1.7rem;
+    font-weight: 800;
+    color: black;
+    line-height: 1.1;
+    word-wrap: break-word;
+  }
+  .kpi-label {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Charts — fixed height & canvas sizing */
+  .chart-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 2rem;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    height: 420px;
+    position: relative;
+  }
+  .chart-card h5 {
+    position: absolute;
+    top: 1rem;
+    left: 2rem;
+    z-index: 10;
+    font-weight: 700;
+    margin: 0;
+    font-size: 1rem;
+  }
+  .chart-card canvas {
+    height: 100% !important;
+    width: 100% !important;
+  }
+
+  .table-container {
+    background: var(--surface);
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+  }
+  .table-container .header {
+    padding: 1.6rem 2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-5">
+  <h1 class="page-title">Stock Report</h1>
+  <div class="btn-group">
+    <a href="?export=pdf" class="btn btn-danger btn-lg px-4">PDF</a>
+    <a href="?export=csv" class="btn btn-success btn-lg px-4">CSV</a>
+  </div>
+</div>
+
+<!-- KPI Cards — Numbers now fit perfectly -->
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div class="kpi-label">Total Products</div>
+    <div class="kpi-value">{{ total_items|default:"0" }}</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Total Stock Value</div>
+    <div class="kpi-value">GH₵{{ total_stock_value|floatformat:2 }}</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Low Stock Items</div>
+    <div class="kpi-value text-warning">{{ low_stock_count|default:"0" }}</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Out of Stock</div>
+    <div class="kpi-value text-danger">{{ out_of_stock_count|default:"0" }}</div>
+  </div>
+</div>
+
+<!-- Charts — WILL SHOW 100% -->
+<div class="row g-5 mb-5">
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <h5>Stock Value by Category</h5>
+      <canvas id="categoryChart"></canvas>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <h5>Stock Status Overview</h5>
+      <canvas id="statusChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Movements Table -->
+<div class="table-container">
+  <div class="header">
+    <div class="fw-bold fs-5">Recent Stock Movements</div>
+    <small class="text-muted">{{ recent_movements|length }} record{{ recent_movements|length|pluralize }}</small>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="text-uppercase small text-muted">
+        <tr>
+          <th>Date & Time</th>
+          <th>Product</th>
+          <th>Type</th>
+          <th class="text-center">Qty Change</th>
+          <th>User</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in recent_movements %}
+        <tr>
+          <td>
+            <div>{{ m.created_at|date:"d M Y" }}</div>
+            <small class="text-muted">{{ m.created_at|time:"H:i" }}</small>
+          </td>
+          <td>
+            <div class="fw-bold">{{ m.product.name }}</div>
+            <small class="text-muted">{{ m.product.sku }}</small>
+          </td>
+          <td>
+            {% if m.transaction_type == 'IN' %}
+              <span class="badge bg-success px-4 py-2">Stock In</span>
+            {% elif m.transaction_type == 'OUT' %}
+              <span class="badge bg-danger px-4 py-2">Stock Out</span>
+            {% else %}
+              <span class="badge bg-info text-dark px-4 py-2">Adjustment</span>
+            {% endif %}
+          </td>
+          <td class="text-center fw-bold">
+            <span class="{% if m.quantity > 0 %}text-success{% else %}text-danger{% endif %}">
+              {{ m.quantity|stringformat:"+d" }}
+            </span>
+          </td>
+          <td><small class="text-muted">{{ m.created_by.get_full_name|default:m.created_by.username }}</small></td>
+          <td><small class="text-muted">{{ m.note|default:"—" }}</small></td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center py-6 text-muted">
+            <h5>No recent stock movements</h5>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Wait for DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', function () {
+
+  // Category Chart — WILL SHOW
+  const catCtx = document.getElementById('categoryChart');
+  if (catCtx) {
+    new Chart(catCtx, {
+      type: 'doughnut',
+      data: {
+        labels: {{ cat_labels|safe }},
+        datasets: [{
+          data: {{ cat_values|safe }},
+          backgroundColor: ['#4361ee','#28a745','#ffc107','#dc3545','#6f42c1','#17a2b8','#fd7e14','#e83e8c'],
+          borderWidth: 4,
+          borderColor: 'var(--surface)',
+          hoverOffset: 12
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { padding: 20, usePointStyle: true } }
+        },
+        cutout: '62%'
+      }
+    });
+  }
+
+  // Status Chart — WILL SHOW 100%
+  const statusCtx = document.getElementById('statusChart');
+  if (statusCtx) {
+    new Chart(statusCtx, {
+      type: 'bar',
+      data: {
+        labels: ['In Stock', 'Low Stock', 'Out of Stock'],
+        datasets: [{
+          data: [
+            {{ in_stock_count|default:0 }},
+            {{ low_stock_count|default:0 }},
+            {{ out_of_stock_count|default:0 }}
+          ],
+          backgroundColor: ['#28a745', '#ffc107', '#dc3545'],
+          borderRadius: 10,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Update Stock • {{ product.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .quantity-display {
+    font-size: 4.8rem;
+    font-weight: 800;
+    background: linear-gradient(45deg, #28a745, #20c997);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .quantity-low {
+    background: linear-gradient(45deg, #ffc107, #fd7e14);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .quantity-out {
+    background: linear-gradient(45deg, #dc3545, #e74c3c);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .action-btn {
+    padding: 1.3rem;
+    text-align: center;
+    border-radius: 14px;
+    transition: var(--transition);
+    font-weight: 600;
+  }
+  .action-btn:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.18);
+  }
+  .preview-card {
+    background: linear-gradient(135deg, rgba(67,97,238,0.04), rgba(67,97,238,0.02));
+    border: 2px dashed rgba(67,97,238,0.3);
+  }
+  .preview-card h2 {
+    font-size: 3.2rem;
+    font-weight: 800;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-5">
+  <h1 class="page-title">Update Stock</h1>
+  <a href="{% url 'inventory_list' %}" class="btn btn-outline-secondary px-5">
+    Back to Inventory
+  </a>
+</div>
+
+<div class="row g-5">
+  <!-- Product Info + Current Stock -->
+  <div class="col-lg-4">
+    <div class="card text-center h-100">
+      {% if product.image %}
+        <img src="{{ product.image.url }}" class="rounded-circle mx-auto mt-4" 
+             style="width:130px;height:130px;object-fit:cover;border:5px solid #4361ee;">
+      {% else %}
+        <div class="bg-light rounded-circle mx-auto mt-4 d-flex align-items-center justify-content-center"
+             style="width:130px;height:130px;">
+          <i class="fas fa-box fa-4x text-muted"></i>
+        </div>
+      {% endif %}
+      <div class="card-body">
+        <h3 class="fw-bold mt-3">{{ product.name }}</h3>
+        <p class="text-muted">
+          SKU: <strong>{{ product.sku }}</strong><br>
+          {{ product.category|default:"Uncategorized" }}
+        </p>
+      </div>
+    </div>
+
+    <div class="card text-center mt-4">
+      <div class="card-body">
+        <small class="text-muted text-uppercase fw-bold d-block mb-3">Current Stock Level</small>
+        <div class="quantity-display
+          {% if product.quantity == 0 %}quantity-out
+          {% elif product.quantity <= product.low_stock_threshold %}quantity-low{% endif %}">
+          {{ product.quantity }}
+        </div>
+        <small class="text-muted d-block mt-3">
+          Threshold: {{ product.low_stock_threshold }} units
+        </small>
+        {% if product.quantity <= product.low_stock_threshold and product.quantity > 0 %}
+          <span class="badge bg-warning text-dark fs-6 mt-3 px-4 py-2">Low Stock Alert</span>
+        {% elif product.quantity == 0 %}
+          <span class="badge bg-danger fs-6 mt-3 px-4 py-2">Out of Stock</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Update Form -->
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-4">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+
+          <!-- Action Selection -->
+          <div class="mb-5">
+            <h5 class="fw-bold mb-4">Choose Action</h5>
+            <div class="row g-4">
+              <div class="col-md-4">
+                <input type="radio" class="btn-check" name="action" id="add" value="add" checked>
+                <label class="btn btn-outline-success action-btn w-100 h-100 d-flex flex-column justify-content-center" for="add">
+                  <strong class="fs-5">Add Stock</strong>
+                  <small class="mt-2 opacity-75">Increase quantity</small>
+                </label>
+              </div>
+              <div class="col-md-4">
+                <input type="radio" class="btn-check" name="action" id="remove" value="remove">
+                <label class="btn btn-outline-warning action-btn w-100 h-100 d-flex flex-column justify-content-center" for="remove">
+                  <strong class="fs-5">Remove Stock</strong>
+                  <small class="mt-2 opacity-75">Damaged / Lost</small>
+                </label>
+              </div>
+              <div class="col-md-4">
+                <input type="radio" class="btn-check" name="action" id="set" value="set">
+                <label class="btn btn-outline-primary action-btn w-100 h-100 d-flex flex-column justify-content-center" for="set">
+                  <strong class="fs-5">Set Exact</strong>
+                  <small class="mt-2 opacity-75">Physical count correction</small>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quantity Input -->
+          <div class="mb-5">
+            <label class="fw-bold d-block mb-3">Enter Quantity</label>
+            <input type="number" name="quantity" id="qtyInput" class="form-control form-control-lg text-center" 
+                   value="1" min="1" required>
+          </div>
+
+          <!-- Note -->
+          <div class="mb-5">
+            <label class="fw-bold d-block mb-3">Note (Optional)</label>
+            <textarea name="note" rows="4" class="form-control" 
+                      placeholder="e.g., Received 50 units from supplier, 3 units damaged, physical count done..."></textarea>
+          </div>
+
+          <!-- Live Preview -->
+          <div class="card preview-card mb-5">
+            <div class="card-body text-center py-5">
+              <h4 class="fw-bold mb-4">Preview After Update</h4>
+              <div class="row justify-content-center">
+                <div class="col-5">
+                  <small class="text-muted d-block">Current Stock</small>
+                  <h2 class="fw-bold text-dark">{{ product.quantity }}</h2>
+                </div>
+                <div class="col-2 d-flex align-items-center justify-content-center">
+                  <h3 class="text-muted">→</h3>
+                </div>
+                <div class="col-5">
+                  <small class="text-muted d-block">New Stock</small>
+                  <h2 id="previewQty" class="fw-bold text-primary">{{ product.quantity }}</h2>
+                </div>
+              </div>
+              <p class="mt-4 fs-5 text-muted" id="previewMsg">Select an action above</p>
+            </div>
+          </div>
+
+          <!-- Submit -->
+          <div class="d-flex justify-content-end gap-3">
+            <a href="{% url 'inventory_list' %}" class="btn btn-outline-secondary btn-lg px-5">Cancel</a>
+            <button type="submit" class="btn btn-primary btn-lg px-5">Update Stock</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const current = {{ product.quantity }};
+  const low = {{ product.low_stock_threshold }};
+
+  function updatePreview() {
+    const action = document.querySelector('input[name="action"]:checked').value;
+    const qty = parseInt(document.getElementById('qtyInput').value) || 0;
+    let newQty = current;
+    let msg = "";
+
+    if (action === "add")    { newQty = current + qty; msg = `+${qty} → ${newQty} units`; }
+    if (action === "remove") { newQty = Math.max(0, current - qty); msg = `-${qty} → ${newQty} units`; }
+    if (action === "set")    { newQty = qty; msg = `Set to ${qty} units`; }
+
+    const previewEl = document.getElementById('previewQty');
+    previewEl.textContent = newQty;
+    previewEl.style.color = newQty === 0 ? '#dc3545' : newQty <= low ? '#fd7e14' : '#28a745';
+
+    document.getElementById('previewMsg').textContent = msg;
+  }
+
+  document.querySelectorAll('input[name="action"], #qtyInput').forEach(el => {
+    el.addEventListener('input', updatePreview);
+    el.addEventListener('change', updatePreview);
+  });
+
+  updatePreview();
+</script>
+{% endblock %}

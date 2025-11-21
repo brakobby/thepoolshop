@@ -1,0 +1,169 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Customers – THE POOLsHOP</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    :root{--bg:#f8faff;--panel:#ffffff;--muted:#64748b;--primary-600:#0d6efd;--primary-700:#0b5ed7;--accent:#3b82f6;--card-shadow:0 10px 30px rgba(13,110,253,.06);--glass:rgba(255,255,255,.85);--border:rgba(13,110,253,.08);--rounded:14px;--transition:all .22s cubic-bezier(.4,0,.2,1)}
+    .dark-mode-enh{--bg:#0f172a;--panel:#1e293b;--muted:#94a3b8;--primary-600:#60a5fa;--primary-700:#3b82f6;--card-shadow:0 10px 30px rgba(0,0,0,.3);--glass:rgba(30,41,59,.9);--border:rgba(255,255,255,.08);color:#e2e8f0}
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:'Inter','Segoe UI',sans-serif}
+    body{background:var(--bg);color:#1e293b;overflow:hidden;transition:var(--transition)}
+    .topbar{height:70px;background:var(--glass);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);box-shadow:0 4px 20px rgba(0,0,0,.04);position:sticky;top:0;z-index:1030;transition:var(--transition)}
+    .brand{display:flex;align-items:center;gap:.6rem;font-weight:700;color:var(--primary-700);text-decoration:none;font-size:1.15rem}
+    .brand i{color:var(--primary-600);font-size:1.35rem}
+    .layout{display:flex;height:calc(100vh - 70px);overflow:hidden}
+    .sidebar{width:260px;min-width:260px;background:linear-gradient(180deg,#052a6b,#0b63d6);color:#fff;padding:1.5rem 1rem;display:flex;flex-direction:column;overflow:hidden;transition:width .3s ease;box-shadow:8px 0 30px rgba(5,42,107,.12)}
+    .sidebar .nav-title{font-size:.72rem;color:rgba(255,255,255,.8);letter-spacing:.08em;margin:0 0 .8rem .8rem;font-weight:600}
+    .sidebar .nav-link{color:rgba(255,255,255,.92);padding:.75rem .9rem;border-radius:10px;display:flex;align-items:center;gap:.8rem;font-weight:600;transition:var(--transition);margin:.2rem .5rem}
+    .sidebar .nav-link:hover{background:rgba(255,255,255,.12);transform:translateX(6px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
+    .sidebar .nav-link.active{background:rgba(255,255,255,.18);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);font-weight:700}
+    .sidebar-collapsed{width:72px!important;min-width:72px!important}
+    .sidebar-collapsed .nav-title,.sidebar-collapsed .nav-link .label{display:none}
+    .sidebar-collapsed .nav-link{justify-content:center;padding:.75rem}
+    .main{flex:1;overflow-y:auto;overflow-x:hidden;padding:1.5rem;background:var(--bg);transition:var(--transition)}
+    .main::-webkit-scrollbar{width:8px}
+    .main::-webkit-scrollbar-track{background:transparent}
+    .main::-webkit-scrollbar-thumb{background:rgba(100,116,139,.3);border-radius:4px}
+    .main::-webkit-scrollbar-thumb:hover{background:rgba(100,116,139,.5)}
+    .page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;padding-bottom:.75rem;border-bottom:1px solid var(--border)}
+    .page-title{font-size:1.4rem;font-weight:700;color:var(--primary-700);display:flex;align-items:center;gap:.5rem}
+    .filter-bar{background:var(--panel);border-radius:var(--rounded);padding:1rem;box-shadow:var(--card-shadow);border:1px solid var(--border);margin-bottom:1.5rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
+    .filter-input{flex:1;min-width:220px}
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem}
+    .stat-card{background:var(--panel);border-radius:var(--rounded);padding:1.1rem;box-shadow:var(--card-shadow);border:1px solid var(--border);display:flex;align-items:center;gap:1rem}
+    .stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.2rem}
+    .stat-value{font-size:1.5rem;font-weight:700;color:var(--primary-700)}
+    .stat-label{font-size:.85rem;color:var(--muted)}
+    .table-card{background:var(--panel);border-radius:var(--rounded);overflow:hidden;box-shadow:var(--card-shadow);border:1px solid var(--border)}
+    .table-card .card-header{background:transparent;border-bottom:1px solid var(--border);padding:1rem 1.25rem;display:flex;justify-content:space-between;align-items:center}
+    .table thead th{background:transparent;border-bottom:1px solid var(--border);font-weight:700;color:#1e293b;font-size:.85rem;text-transform:uppercase;letter-spacing:.5px}
+    .table tbody td{vertical-align:middle;font-size:.925rem}
+    .action-btn{padding:.35rem .55rem;font-size:.8rem;border-radius:8px}
+    @media(max-width:992px){.layout{flex-direction:column}.sidebar{width:100%;height:auto;padding:1rem;box-shadow:none}.filter-bar{flex-direction:column;align-items:stretch}.filter-input{min-width:100%}}
+  </style>
+</head>
+<body>
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="container-fluid h-100 d-flex align-items-center justify-content-between px-3 px-lg-4">
+      <div class="d-flex align-items-center gap-3">
+        <button id="sidebarToggle" class="btn btn-sm btn-outline-primary d-lg-none"><i class="fa fa-bars"></i></button>
+        <a href="{% url 'dashboard' %}" class="brand"><i class="fas fa-swimming-pool"></i><span class="brand-text">THE POOLsHOP</span></a>
+        <div class="small text-muted d-none d-md-inline">Customers</div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <div class="text-muted small d-none d-md-flex align-items-center"><i class="far fa-calendar me-2"></i> {{ "now"|date:"D, d M Y" }}</div>
+        <div class="dropdown">
+          <button class="btn btn-light btn-sm dropdown-toggle d-flex align-items-center gap-1" data-bs-toggle="dropdown">
+            <i class="fas fa-user-circle"></i><span class="d-none d-md-inline">{{ user.get_full_name|default:user.username }}</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="#">Profile</a></li><li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item text-danger" href="{% url 'logout' %}">Logout</a></li>
+          </ul>
+        </div>
+        <button id="darkModeToggle" class="btn btn-outline-primary btn-sm"><i class="fas fa-moon"></i></button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Layout -->
+  <div class="layout">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-title">Menu</div>
+      <nav>
+        <a href="{% url 'dashboard' %}" class="nav-link active"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+        <a href="{% url 'inventory_list' %}" class="nav-link"><i class="fas fa-boxes"></i> Inventory</a>
+        <a href="{% url 'low_stock_list' %}" class="nav-link"><i class="fas fa-exclamation-triangle"></i> Low Stock</a>
+        <a href="{% url 'create_invoice' %}" class="nav-link"><i class="fas fa-receipt"></i> Create Invoice</a>
+        <a href="{% url 'invoice_list' %}" class="nav-link"><i class="fas fa-file-invoice"></i> Invoices</a>
+        <a href="{% url 'sales_report' %}" class="nav-link"><i class="fas fa-chart-line"></i> Sales Report</a>
+        <a href="{% url 'stock_report' %}" class="nav-link"><i class="fas fa-chart-pie"></i> Stock Report</a>
+      </nav>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <section class="page-header">
+        <div class="page-title"><i class="fas fa-users"></i> Customers</div>
+        <a href="{% url 'add_customer' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Add Customer</a>
+      </section>
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon bg-primary"><i class="fas fa-users"></i></div>
+          <div><div class="stat-value">{{ total_customers }}</div><div class="stat-label">Total Customers</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon bg-success"><i class="fas fa-shopping-cart"></i></div>
+          <div><div class="stat-value">{{ active_buyers }}</div><div class="stat-label">Active Buyers</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon bg-info"><i class="fas fa-money-bill-wave"></i></div>
+          <div><div class="stat-value">GH₵{{ total_spent|floatformat:2 }}</div><div class="stat-label">Total Spent</div></div>
+        </div>
+      </div>
+
+      <!-- Search -->
+      <div class="filter-bar">
+        <form method="get" class="w-100 d-flex gap-2">
+          <input type="text" name="search" class="form-control filter-input" placeholder="Search by name, phone, or email..." value="{{ search_query }}">
+          <button type="submit" class="btn btn-outline-primary"><i class="fas fa-search"></i></button>
+          <a href="{% url 'customer_list' %}" class="btn btn-outline-secondary"><i class="fas fa-times"></i></a>
+        </form>
+      </div>
+
+      <!-- Table -->
+      <div class="table-card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="fas fa-list"></i> All Customers</h5>
+          <small class="text-muted">Showing {{ customers|length }} customer{{ customers|length|pluralize }}</small>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Name</th><th>Phone</th><th>Email</th><th class="text-center">Invoices</th><th class="text-end">Total Spent</th><th class="text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in customers %}
+              <tr>
+                <td><strong>{{ c.name }}</strong></td>
+                <td>{{ c.phone|default:"—" }}</td>
+                <td>{{ c.email|default:"—" }}</td>
+                <td class="text-center">{{ c.invoice_count }}</td>
+                <td class="text-end">GH₵{{ c.total_spent|floatformat:2 }}</td>
+                <td class="text-center">
+                  <a href="{% url 'edit_customer' c.id %}" class="btn btn-sm btn-outline-primary action-btn" title="Edit"><i class="fas fa-edit"></i></a>
+                  <a href="{% url 'customer_invoices' c.id %}" class="btn btn-sm btn-outline-info action-btn" title="Invoices"><i class="fas fa-receipt"></i></a>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6" class="text-center py-5"><i class="fas fa-users-slash fa-3x text-muted mb-3"></i><h5>No customers found</h5></td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const sidebar=document.getElementById('sidebar'),toggleBtn=document.getElementById('sidebarToggle');
+    toggleBtn&&toggleBtn.addEventListener('click',()=>{sidebar.classList.toggle('sidebar-collapsed')});
+    const darkToggle=document.getElementById('darkModeToggle');
+    darkToggle.addEventListener('click',()=>{document.body.classList.toggle('dark-mode-enh');const i=darkToggle.querySelector('i');i.classList.toggle('fa-moon');i.classList.toggle('fa-sun')});
+  </script>
+</body>
+</html>
