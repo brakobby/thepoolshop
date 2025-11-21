@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: adpools-ims
+    env: python
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn adpools.wsgi:application"
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: WEB_CONCURRENCY
+        value: "4"
+    disk:
+      name: uploads
+      mountPath: /opt/render/project/src/media
+      sizeGB: 1
